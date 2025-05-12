@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
 
@@ -17,37 +16,13 @@ type Message struct {
 }
 
 // Hub manages active WebSocket connections
-// type Hub struct {
-// 	Clients   map[*websocket.Conn]string
-// 	Lock      sync.Mutex
-// 	Broadcast chan Message
-// }
-
 type Hub struct {
 	Clients   map[*websocket.Conn]string
 	Lock      sync.Mutex
 	Broadcast chan Message
 }
 
-func (h *Hub) Run() {
-	for {
-		msg := <-h.Broadcast
-		h.Lock.Lock()
-		for client, room := range h.Clients {
-			if room == msg.Room {
-				err := client.WriteJSON(msg)
-				if err != nil {
-					log.Println("WebSocket write error:", err)
-					client.Close()
-					delete(h.Clients, client)
-				}
-			}
-		}
-		h.Lock.Unlock()
-	}
-}
-
-var HubInstance = &Hub{
+var hub = Hub{
 	Clients:   make(map[*websocket.Conn]string),
 	Broadcast: make(chan Message),
 }
@@ -66,14 +41,14 @@ func HandleConnections(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	HubInstance.Lock.Lock()
-	HubInstance.Clients[conn] = ""
-	HubInstance.Lock.Unlock()
+	hub.Lock.Lock()
+	hub.Clients[conn] = ""
+	hub.Lock.Unlock()
 
 	defer func() {
-		HubInstance.Lock.Lock()
-		delete(HubInstance.Clients, conn)
-		HubInstance.Lock.Unlock()
+		hub.Lock.Lock()
+		delete(hub.Clients, conn)
+		hub.Lock.Unlock()
 		conn.Close()
 	}()
 
@@ -85,28 +60,28 @@ func HandleConnections(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		HubInstance.Lock.Lock()
-		HubInstance.Clients[conn] = msg.Room
-		HubInstance.Lock.Unlock()
+		hub.Lock.Lock()
+		hub.Clients[conn] = msg.Room
+		hub.Lock.Unlock()
 	}
 }
 
 // BroadcastMessages listens for messages and sends them to appropriate clients
 func BroadcastMessages() {
 	for {
-		msg := <-HubInstance.Broadcast
-		HubInstance.Lock.Lock()
-		for client, room := range HubInstance.Clients {
+		msg := <-hub.Broadcast
+		hub.Lock.Lock()
+		for client, room := range hub.Clients {
 			if room == msg.Room {
 				err := client.WriteJSON(msg)
 				if err != nil {
 					log.Println("WebSocket write error:", err)
 					client.Close()
-					delete(HubInstance.Clients, client)
+					delete(hub.Clients, client)
 				}
 			}
 		}
-		HubInstance.Lock.Unlock()
+		hub.Lock.Unlock()
 	}
 }
 
@@ -115,19 +90,6 @@ func StartWebSocketServer() {
 	http.HandleFunc("/ws", HandleConnections)
 	go BroadcastMessages()
 	fmt.Println("WebSocket server started on /ws")
-}
-
-func HandleWebSocket(c *gin.Context) {
-	w := c.Writer
-	r := c.Request
-
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Println("WebSocket upgrade error:", err)
-		return
-	}
-
-	defer conn.Close()
 }
 
 // ===============================================================================

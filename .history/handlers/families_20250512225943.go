@@ -330,7 +330,7 @@ func UpdateProducts(c *gin.Context) {
 
 	// WebSocket notification
 	if len(changes) > 0 {
-		HubInstance.Broadcast <- Message{
+		Hub.broadcast <- Message{
 			Room: "family_" + id,
 			Payload: gin.H{
 				"family_id": id,

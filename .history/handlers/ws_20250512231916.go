@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
 
@@ -118,17 +117,11 @@ func StartWebSocketServer() {
 }
 
 func HandleWebSocket(c *gin.Context) {
-	w := c.Writer
-	r := c.Request
-
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Println("WebSocket upgrade error:", err)
 		return
 	}
-
-	defer conn.Close()
-}
 
 // ===============================================================================
 

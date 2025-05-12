@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
 
@@ -90,6 +91,14 @@ func StartWebSocketServer() {
 	http.HandleFunc("/ws", HandleConnections)
 	go BroadcastMessages()
 	fmt.Println("WebSocket server started on /ws")
+}
+
+func HandleWebSocket(c *gin.Context) {
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.Println("WebSocket upgrade error:", err)
+		return
+	}
 }
 
 // ===============================================================================

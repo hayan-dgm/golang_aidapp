@@ -145,6 +145,7 @@ package db
 import (
 	"database/sql"
 	"log"
+	"os"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -153,11 +154,10 @@ var DB *sql.DB
 
 func InitDB() {
 	var err error
-	// dbPath := os.Getenv("DATABASE_URL")
-	dbPath := "C:\\Users\\Mad\\Desktop\\help_app_golang\\golang_api_aidapp\\aid_app.db"
-	// if dbPath == "" {
-	// 	dbPath = "C:\\Users\\Mad\\Desktop\\help_app_golang\\golang_api_aidapp\\aid_app.db"
-	// }
+	dbPath := os.Getenv("DATABASE_URL")
+	if dbPath == "" {
+		dbPath = "C:\\Users\\Mad\\Desktop\\help_app_golang\\golang_api_aidapp\\aid_app.db"
+	}
 
 	DB, err = sql.Open("sqlite3", dbPath)
 	if err != nil {

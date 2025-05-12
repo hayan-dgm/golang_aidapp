@@ -25,7 +25,7 @@ func main() {
 	middleware.Initialize(db.DB)
 
 	// Start WebSocket hub
-	go handlers.HubInstance.Run()
+	go handlers.Hub.Run()
 
 	// Create router
 	r := gin.Default()
