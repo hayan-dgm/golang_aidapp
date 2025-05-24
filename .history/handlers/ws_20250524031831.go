@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
+
+// "github.com/gin-gonic/gin"
 
 // Message represents a message to be broadcasted
 type Message struct {
@@ -119,9 +120,6 @@ func StartWebSocketServer() {
 	http.HandleFunc("/ws", HandleConnections)
 	go BroadcastMessages()
 	fmt.Println("WebSocket server started on /ws")
-}
-func HandleWebSocket(c *gin.Context) {
-	HandleConnections(c.Writer, c.Request)
 }
 
 // func HandleWebSocket(c *gin.Context) {
