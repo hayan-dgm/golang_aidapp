@@ -143,194 +143,66 @@
 package db
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"log"
-	"os"
-	"strconv"
 	"time"
 
 	//
 	// _ "github.com/mattn/go-sqlite3"
-	_ "github.com/lib/pq" // PostgreSQL driver
+	_ "github.com/lib/pq"
 	// sqlitecloud "github.com/sqlitecloud/sqlitecloud-go"
 )
 
 var DB *sql.DB
 
-// func InitDB() {
-// 	var err error
-// 	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=require",
-// 		"cnst4x7hhz.g2.sqlite.cloud", // host
-// 		8860,                         // port
-// 		"aid_app.db",                 // user (database name acts as username in some SQLite Cloud configs)
-// 		"etxRvv4Mmrh6nXNddchOveOm1vAP7cwp2UMZWMxgVGw", // password (using API key as password)
-// 		"aid_app.db") // dbname
-
-// 	DB, err = sql.Open("postgres", connStr)
-// 	if err != nil {
-// 		log.Fatal("Failed to connect to SQLite Cloud:", err)
-// 	}
-
-// 	// Configure connection pool
-// 	DB.SetMaxOpenConns(25)
-// 	DB.SetMaxIdleConns(25)
-// 	DB.SetConnMaxLifetime(5 * time.Minute)
-
-// 	// Verify connection
-// 	if err = DB.Ping(); err != nil {
-// 		log.Fatal("Failed to ping database:", err)
-// 	}
-
-// 	log.Println("Successfully connected to SQLite Cloud via PostgreSQL protocol!")
-// 	createTables()
-
-// 	// dbPath := os.Getenv("DATABASE_URL")
-// 	// dbPath := "C:\\Users\\Mad\\Desktop\\help_app_golang\\golang_api_aidapp\\aid_app.db"
-// 	// if dbPath == "" {
-// 	// dbPath := "/app/aid_app.db"
-// 	// dbPath = "C:\\Users\\Mad\\Desktop\\help_app_golang\\golang_api_aidapp\\aid_app.db"
-// 	// }
-
-// 	// DB, err = sql.Open("sqlite3", dbPath)
-// 	// if err != nil {
-// 	// 	log.Fatal(err)
-// 	// }
-
-// 	// // Verify connection
-// 	// if err = DB.Ping(); err != nil {
-// 	// 	log.Fatal(err)
-// 	// }
-
-// 	// createTables()
-// }
-
-// func InitDB() {
-// 	var err error
-
-// 	// Use environment variables for security (set these in Railway)
-// 	host := os.Getenv("DB_HOST")
-// 	port := os.Getenv("DB_PORT")
-// 	user := os.Getenv("DB_USER")
-// 	password := os.Getenv("DB_PASSWORD")
-// 	dbname := os.Getenv("DB_NAME")
-
-// 	// Convert port to integer
-// 	portInt, err := strconv.Atoi(port)
-// 	if err != nil {
-// 		log.Fatal("Invalid DB_PORT:", err)
-// 	}
-
-// 	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=require connect_timeout=5",
-// 		host,
-// 		portInt,
-// 		user,
-// 		password,
-// 		dbname)
-
-// 	// Add connection timeout context
-// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-// 	defer cancel()
-
-// 	DB, err = sql.Open("postgres", connStr)
-// 	if err != nil {
-// 		log.Fatal("Failed to initialize database connection:", err)
-// 	}
-
-// 	// Configure connection pool
-// 	DB.SetMaxOpenConns(10) // Reduced for SQLite Cloud's likely limits
-// 	DB.SetMaxIdleConns(5)
-// 	DB.SetConnMaxLifetime(30 * time.Minute)
-
-// 	// Verify connection with timeout
-// 	if err = DB.PingContext(ctx); err != nil {
-// 		log.Fatal("Failed to ping database:", err)
-// 	}
-
-// 	log.Println("Successfully connected to SQLite Cloud via PostgreSQL protocol!")
-// 	createTables()
-// }
-
-// Initialize database connection with robust error handling
 func InitDB() {
 	var err error
-	retryCount := 3
-	retryDelay := 2 * time.Second
+	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=require",
+		"cnst4x7hhz.g2.sqlite.cloud", // host
+		8860,                         // port
+		"aid_app.db",                 // user (database name acts as username in some SQLite Cloud configs)
+		"etxRvv4Mmrh6nXNddchOveOm1vAP7cwp2UMZWMxgVGw", // password (using API key as password)
+		"aid_app.db") // dbname
 
-	config := dbConfig{
-		Host:     getEnv("DB_HOST", "cnst4x7hhz.g2.sqlite.cloud"),
-		Port:     getEnv("DB_PORT", "8860"),
-		User:     getEnv("DB_USER", "aid_app.db"),
-		Password: getEnv("DB_PASSWORD", "etxRvv4Mmrh6nXNddchOveOm1vAP7cwp2UMZWMxgVGw"),
-		DBName:   getEnv("DB_NAME", "aid_app.db"),
-	}
-
-	// Validate port
-	port, err := strconv.Atoi(config.Port)
+	DB, err = sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatal("Invalid DB_PORT: must be a number between 1-65535")
+		log.Fatal("Failed to connect to SQLite Cloud:", err)
 	}
 
-	connStr := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=require connect_timeout=3",
-		config.Host,
-		port,
-		config.User,
-		config.Password,
-		config.DBName,
-	)
+	// Configure connection pool
+	DB.SetMaxOpenConns(25)
+	DB.SetMaxIdleConns(25)
+	DB.SetConnMaxLifetime(5 * time.Minute)
 
-	// Retry connection logic
-	for i := 0; i < retryCount; i++ {
-		DB, err = sql.Open("postgres", connStr)
-		if err != nil {
-			log.Printf("Attempt %d: Connection failed: %v", i+1, err)
-			time.Sleep(retryDelay)
-			continue
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		err = DB.PingContext(ctx)
-		if err == nil {
-			break
-		}
-
-		log.Printf("Attempt %d: Ping failed: %v", i+1, err)
-		DB.Close()
-		time.Sleep(retryDelay)
+	// Verify connection
+	if err = DB.Ping(); err != nil {
+		log.Fatal("Failed to ping database:", err)
 	}
 
-	if err != nil {
-		log.Fatal("Failed to connect after retries:", err)
-	}
-
-	DB.SetMaxOpenConns(8) // Conservative for SQLite Cloud
-	DB.SetMaxIdleConns(3)
-	DB.SetConnMaxLifetime(15 * time.Minute)
-
-	log.Println("✅ Database connection established")
+	log.Println("Successfully connected to SQLite Cloud via PostgreSQL protocol!")
 	createTables()
+
+	// dbPath := os.Getenv("DATABASE_URL")
+	// dbPath := "C:\\Users\\Mad\\Desktop\\help_app_golang\\golang_api_aidapp\\aid_app.db"
+	// if dbPath == "" {
+	// dbPath := "/app/aid_app.db"
+	// dbPath = "C:\\Users\\Mad\\Desktop\\help_app_golang\\golang_api_aidapp\\aid_app.db"
+	// }
+
+	// DB, err = sql.Open("sqlite3", dbPath)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// // Verify connection
+	// if err = DB.Ping(); err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// createTables()
 }
 
-// Helper struct for DB configuration
-type dbConfig struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	DBName   string
-}
-
-// Helper function to get environment variables with fallback
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
 func createTables() {
 	tables := []string{
 		`CREATE TABLE IF NOT EXISTS users (

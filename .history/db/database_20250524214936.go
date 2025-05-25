@@ -255,9 +255,8 @@ var DB *sql.DB
 // Initialize database connection with robust error handling
 func InitDB() {
 	var err error
-	retryCount := 3
-	retryDelay := 2 * time.Second
 
+	// Get configuration from environment variables with defaults
 	config := dbConfig{
 		Host:     getEnv("DB_HOST", "cnst4x7hhz.g2.sqlite.cloud"),
 		Port:     getEnv("DB_PORT", "8860"),
@@ -266,14 +265,15 @@ func InitDB() {
 		DBName:   getEnv("DB_NAME", "aid_app.db"),
 	}
 
-	// Validate port
+	// Validate and convert port
 	port, err := strconv.Atoi(config.Port)
-	if err != nil {
-		log.Fatal("Invalid DB_PORT: must be a number between 1-65535")
+	if err != nil || port < 1 || port > 65535 {
+		log.Fatal("Invalid DB_PORT: must be between 1-65535")
 	}
 
+	// Build connection string with timeout
 	connStr := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=require connect_timeout=3",
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=require connect_timeout=5",
 		config.Host,
 		port,
 		config.User,
@@ -281,37 +281,26 @@ func InitDB() {
 		config.DBName,
 	)
 
-	// Retry connection logic
-	for i := 0; i < retryCount; i++ {
-		DB, err = sql.Open("postgres", connStr)
-		if err != nil {
-			log.Printf("Attempt %d: Connection failed: %v", i+1, err)
-			time.Sleep(retryDelay)
-			continue
-		}
+	// Initialize connection with context timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		err = DB.PingContext(ctx)
-		if err == nil {
-			break
-		}
-
-		log.Printf("Attempt %d: Ping failed: %v", i+1, err)
-		DB.Close()
-		time.Sleep(retryDelay)
-	}
-
+	DB, err = sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatal("Failed to connect after retries:", err)
+		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	DB.SetMaxOpenConns(8) // Conservative for SQLite Cloud
-	DB.SetMaxIdleConns(3)
-	DB.SetConnMaxLifetime(15 * time.Minute)
+	// Configure connection pool (optimized for SQLite Cloud)
+	DB.SetMaxOpenConns(10)                  // Maximum open connections
+	DB.SetMaxIdleConns(5)                   // Maximum idle connections
+	DB.SetConnMaxLifetime(30 * time.Minute) // Maximum connection lifetime
 
-	log.Println("✅ Database connection established")
+	// Verify connection
+	if err = DB.PingContext(ctx); err != nil {
+		log.Fatalf("Database ping failed: %v", err)
+	}
+
+	log.Println("✅ Successfully connected to SQLite Cloud database")
 	createTables()
 }
 
